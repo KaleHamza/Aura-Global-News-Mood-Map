@@ -23,7 +23,7 @@ def verileri_yukle():
 df = verileri_yukle()
 
 # --- AI AYARLARI (Senin Key'in) ---
-API_KEY = "AIzaSyAYW2ynlkBvBU-PaJwsYA9iU7bbNp_vb_o"
+API_KEY = "Your_API_Key_Here"
 try:
     genai.configure(api_key=API_KEY)
     model = genai.GenerativeModel('gemini-2.5-flash') 
