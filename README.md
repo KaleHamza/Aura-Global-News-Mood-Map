@@ -291,8 +291,7 @@ Bu proje MIT Lisansı altında dağıtılmaktadır.
 
 ##  İletişim
 
-- **GitHub Issues**: [Sorun bildir](https://github.com/KaleHamza/issues)
-- **Email**: hamza1kale@gmail.com
+- Linkedin hesabımdan ulaşabilirsiniz
 ---
 
 ##  Roadmap
@@ -317,10 +316,7 @@ Bu proje MIT Lisansı altında dağıtılmaktadır.
 
 ---
 
-## Kaynaklar
-
-- [Streamlit Docs](https://docs.streamlit.io)
-- [HuggingFace Transformers](https://huggingface.co/docs/transformers)
+## Proje içindeki kaynaklar
 - [NewsAPI Documentation](https://newsapi.org)
 - [Google Generative AI](https://ai.google.dev)
 
