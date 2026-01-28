@@ -65,7 +65,7 @@ else:
     try:
         genai.configure(api_key=config.GOOGLE_API_KEY)
         model = genai.GenerativeModel('gemini-2.5-flash') 
-        logger.info("✅ Google Gemini API başarıyla yapılandırıldı")
+        logger.info("Google Gemini API başarıyla yapılandırıldı")
     except Exception as e:
         st.error(f"AI Başlatılamadı: {e}")
         logger.error(f"Gemini yapılandırma hatası: {e}")
@@ -73,7 +73,7 @@ else:
 def ai_ozet_al(haberler_listesi):
     if not haberler_listesi: return "Analiz edilecek veri bulunamadı."
     metin = "\n- ".join(haberler_listesi[:15])
-    prompt = f"Aşağıdaki teknoloji haberlerini analiz et ve dünya gündemini 2 kısa Türkçe cümleyle özetle:\n{metin}"
+    prompt = f"Aşağıdaki teknoloji haberlerini analiz et ve dünya gündemini 3 kısa Türkçe cümleyle özetle:\n{metin}"
     try:
         response = model.generate_content(prompt)
         return response.text
@@ -112,7 +112,7 @@ if not df.empty:
     if st.button("✨ Yapay Zeka ile Gündemi Özetle"):
         with st.spinner("Gemini 2.5 analiz ediyor..."):
             son_basliklar = df.sort_values(by='tarih', ascending=False)['baslik'].tolist()
-            ozet = ai_ozet_al(son_basliklar)
+            ozet = ai_ozet_al(son_basliklar)#wow
             st.info(f" **AI Analizi:** {ozet}")
 
     # --- Üst Bilgi Kartları ---

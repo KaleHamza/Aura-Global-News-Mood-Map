@@ -264,24 +264,6 @@ class NewsCollector:
         return all_news
 
 
-# --- TELEGRAM BİLDİRİMİ ---
-def send_telegram_alert(message: str, critical: bool = False):
-    """Telegram'a kritik haber gönder"""
-    try:
-        url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendMessage"
-        payload = {
-            "chat_id": config.TELEGRAM_CHAT_ID,
-            "text": message,
-            "parse_mode": "Markdown"
-        }
-        
-        response = requests.post(url, json=payload, timeout=config.REQUEST_TIMEOUT)
-        response.raise_for_status()
-        logger.info(f" Telegram mesajı gönderildi")
-    except Exception as e:
-        logger.error(f"Telegram gönderme hatası: {e}")
-
-
 # --- ANA ÇALIŞTIRICI ---
 def main_loop():
     """Ana analiz döngüsü"""
@@ -318,19 +300,18 @@ def main_loop():
                     count = db.insert_news(processed)
                     total_processed += count
                     
-                    # Kritik haberleri tespit et ve alert gönder
+                    # Kritik haberleri tespit et
                     for news in processed:
                         if "KRİTİK" in news['risk_seviyesi']:
                             critical_count += 1
-                            alert_msg = f" **KRİTİK HABER** ({news['kategori']})\n\n{news['baslik']}\n\n Skor: {news['skor']}\n Ülke: {country_code.upper()}\n🔗 [Link]({news['url']})"
-                            send_telegram_alert(alert_msg, critical=True)
+                            logger.warning(f" KRİTİK HABER: {news['baslik']} (Skor: {news['skor']})")
             
             # Özet log
             logger.info(f" Özet: {total_processed} yeni haber, {critical_count} kritik")
             print(f" İşlem Tamamlandı: {total_processed} yeni haber kaydedildi")
-            
-            # Bekleme (10 dakika)
-            bekleme = 600
+
+            # Bekleme (20 dakika)
+            bekleme = 1200
             print(f" Sonraki tarama: {bekleme}s sonra ({bekleme//60} dakika)")
             time.sleep(bekleme)
             

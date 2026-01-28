@@ -19,8 +19,6 @@ class Config:
     # API Keys
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
     NEWS_API_KEY: str = os.getenv("NEWS_API_KEY", "")
-    TELEGRAM_TOKEN: str = os.getenv("TELEGRAM_TOKEN", "")
-    TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///haber_analizi.db")
@@ -84,12 +82,12 @@ class Config:
     @classmethod
     def validate_keys(cls) -> bool:
         """Gerekli API keylerin var olup olmadığını kontrol et"""
-        required_keys = ["GOOGLE_API_KEY", "NEWS_API_KEY", "TELEGRAM_TOKEN"]
+        required_keys = ["GOOGLE_API_KEY", "NEWS_API_KEY"]
         missing = [key for key in required_keys if not getattr(cls, key)]
         
         if missing:
-            print(f"⚠️  Eksik API keyleri: {', '.join(missing)}")
-            print("📝 Lütfen .env dosyasını doldurun.")
+            print(f"Eksik API keyleri: {', '.join(missing)}")
+            print("Lütfen .env dosyasını doldurun.")
             return False
         return True
 
