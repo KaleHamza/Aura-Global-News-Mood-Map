@@ -82,14 +82,42 @@ class Config:
     @classmethod
     def validate_keys(cls) -> bool:
         """Gerekli API keylerin var olup olmadığını kontrol et"""
-        required_keys = ["GOOGLE_API_KEY", "NEWS_API_KEY"]
-        missing = [key for key in required_keys if not getattr(cls, key)]
-        
-        if missing:
-            print(f"Eksik API keyleri: {', '.join(missing)}")
-            print("Lütfen .env dosyasını doldurun.")
+        try:
+            required_keys = ["GOOGLE_API_KEY", "NEWS_API_KEY"]
+            missing = [key for key in required_keys if not getattr(cls, key)]
+            
+            if missing:
+                print(f"⚠️ Eksik API keyleri: {', '.join(missing)}")
+                print("ℹ️ Program sınırlı işlevsellikle devam edecektir.")
+                return False
+            return True
+        except Exception as e:
+            print(f"❌ Anahtar doğrulama hatası: {e}")
             return False
-        return True
+    
+    @classmethod
+    def get_google_api_key(cls) -> str:
+        """Google API anahtarını güvenli şekilde al"""
+        try:
+            key = cls.GOOGLE_API_KEY
+            if not key or key == "your_google_api_key_here":
+                return ""
+            return key
+        except Exception as e:
+            print(f"❌ Google API anahtarı okunurken hata: {e}")
+            return ""
+    
+    @classmethod
+    def get_news_api_key(cls) -> str:
+        """News API anahtarını güvenli şekilde al"""
+        try:
+            key = cls.NEWS_API_KEY
+            if not key or key == "your_newsapi_key_here":
+                return ""
+            return key
+        except Exception as e:
+            print(f"❌ News API anahtarı okunurken hata: {e}")
+            return ""
 
 
 class DevelopmentConfig(Config):

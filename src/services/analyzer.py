@@ -56,14 +56,34 @@ class NewsAnalyzer:
             return news
         
         try:
-            # Sentiment analizi
-            sentiment_score = self.sentiment.analyze(news['baslik'])
+            baslik = news.get('baslik', '')
+            if not baslik or not isinstance(baslik, str):
+                return {**news, 'skor': 0.0, 'kategori': 'Unknown', 'risk_seviyesi': 'NORMAL'}
             
-            # Kategori sınıflandırması
-            category = self.classifier.classify(news['baslik'])
+            try:
+                # Sentiment analizi
+                sentiment_score = self.sentiment.analyze(baslik[:512])
+                if sentiment_score is None:
+                    sentiment_score = 0.0
+            except Exception as e:
+                self.logger.warning(f"Sentiment analiz başarısız: {e}")
+                sentiment_score = 0.0
             
-            # Risk seviyesi hesapla
-            risk_level = self.settings.risk_thresholds.get_risk_level(sentiment_score)
+            try:
+                # Kategori sınıflandırması
+                category = self.classifier.classify(baslik[:512])
+                if not category:
+                    category = 'Unknown'
+            except Exception as e:
+                self.logger.warning(f"Kategori sınıflandırma başarısız: {e}")
+                category = 'Unknown'
+            
+            try:
+                # Risk seviyesi hesapla
+                risk_level = self.settings.risk_thresholds.get_risk_level(sentiment_score)
+            except Exception as e:
+                self.logger.warning(f"Risk seviyesi hesaplama başarısız: {e}")
+                risk_level = 'NORMAL'
             
             # Analiz sonuçlarını ekle
             analyzed = {
@@ -74,7 +94,7 @@ class NewsAnalyzer:
                 'analyzed_at': datetime.now().isoformat()
             }
             
-            self.logger.debug(f"Analiz: {news['baslik'][:50]}... → Skor: {sentiment_score:.2f}")
+            self.logger.debug(f"Analiz: {baslik[:50]}... → Skor: {sentiment_score:.2f}")
             return analyzed
             
         except Exception as e:
@@ -84,17 +104,34 @@ class NewsAnalyzer:
                 **news,
                 'skor': 0.0,
                 'kategori': 'Error',
-                'risk_seviyesi': '⚠️ HATA',
+                'risk_seviyesi': 'HATA',
                 'error': str(e)
             }
     
     def analyze_batch(self, news_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Toplu analiz"""
-        results = []
-        for news in news_list:
-            results.append(self.analyze_news(news))
+        if not news_list:
+            return []
         
-        successful = len([r for r in results if 'error' not in r])
+        results = []
+        try:
+            for news in news_list:
+                try:
+                    result = self.analyze_news(news)
+                    results.append(result)
+                except Exception as e:
+                    self.logger.warning(f"Toplu analiz haber hatası: {e}")
+                    # Başarısız olsa da devam et
+                    results.append({
+                        **news,
+                        'skor': 0.0,
+                        'kategori': 'Error',
+                        'risk_seviyesi': 'HATA'
+                    })
+        except Exception as e:
+            self.logger.error(f"Toplu analiz hatası: {e}")
+        
+        successful = len([r for r in results if 'error' not in r or r.get('error') is None])
         self.logger.info(f"Toplu analiz: {successful}/{len(results)} başarılı")
         
         return results
