@@ -202,8 +202,11 @@ class SQLiteNewsRepository(IRepository):
                 cursor = conn.cursor()
                 cursor.execute(NewsSchema.SELECT_BY_COUNTRY_SQL, (country,))
                 return [dict(row) for row in cursor.fetchall()]
-        except DatabaseException as e:
+        except sqlite3.Error as e:
             self.logger.error(f"✗ Ülkeye göre haber okuma hatası: {e}")
+            return []
+        except Exception as e:
+            self.logger.error(f"✗ Beklenmeyen hata: {e}")
             return []
     
     def get_news_by_category(self, category: str) -> List[Dict[str, Any]]:
@@ -213,8 +216,11 @@ class SQLiteNewsRepository(IRepository):
                 cursor = conn.cursor()
                 cursor.execute(NewsSchema.SELECT_BY_CATEGORY_SQL, (category,))
                 return [dict(row) for row in cursor.fetchall()]
-        except DatabaseException as e:
+        except sqlite3.Error as e:
             self.logger.error(f"✗ Kategoriye göre haber okuma hatası: {e}")
+            return []
+        except Exception as e:
+            self.logger.error(f"✗ Beklenmeyen hata: {e}")
             return []
     
     def get_recent_news(self, limit: int = 100) -> List[Dict[str, Any]]:

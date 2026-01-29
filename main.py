@@ -16,13 +16,13 @@ MIMARISI:
 import logging
 import sys
 from typing import List, Dict, Any
+import requests
 
 # Yeni mimariden import et
 from src.config import get_settings
 from src.database import SQLiteNewsRepository
 from src.services import NewsAnalyzer
 from src.interfaces import SentimentAnalyzerInterface, CategoryClassifierInterface
-from src.utils import CacheManager
 
 class DistilBERTSentimentAnalyzer(SentimentAnalyzerInterface):
     """BERT-tabanlı sentiment analizi"""
@@ -139,8 +139,6 @@ class NewsAPIFetcher:
             return []
         
         try:
-            import requests
-            
             # ISO country codes mapping
             country_mapping = {
                 'us': 'us', 'kr': 'kr', 'fr': 'fr',
@@ -212,6 +210,18 @@ def main():
     try:
         settings = get_settings()
         logger.info("✓ Konfigürasyon yüklendi")
+        
+        # Validate essential settings
+        if not hasattr(settings, 'database') or not hasattr(settings.database, 'db_path'):
+            logger.error("✗ Veritabanı ayarları bulunamadı")
+            return False
+        if not hasattr(settings, 'api'):
+            logger.error("✗ API ayarları bulunamadı")
+            return False
+        if not hasattr(settings, 'news') or not hasattr(settings.news, 'categories'):
+            logger.error("✗ Haber kategorileri ayarlanmadı")
+            return False
+            
     except Exception as e:
         logger.error(f"✗ Konfigürasyon yükleme hatası: {e}")
         return False
@@ -258,6 +268,11 @@ def main():
     logger.info("🌐 Haberler çekiliyor...")
     
     try:
+        # Validate settings.countries exists before accessing
+        if not hasattr(settings, 'countries') or not hasattr(settings.countries, 'codes'):
+            logger.error("✗ Ülke ayarları bulunamadı")
+            return False
+        
         news_fetcher = NewsAPIFetcher(settings.api.news_api_key)
         all_raw_news: List[Dict[str, Any]] = []
         

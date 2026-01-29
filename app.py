@@ -2,13 +2,23 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import plotly.express as px
-from wordcloud import WordCloud, STOPWORDS
+from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import google.generativeai as genai
 import hashlib
 
+# --- CONSTANTS ---
+DB_PATH = "news_data.db"
+PAGE_TITLE = "Aura Global Intelligence"
+PAGE_LAYOUT = "wide"
+COMPANY_LIST = ["Apple", "Nvidia", "Samsung", "Tesla", "Microsoft", "Google", "Amazon", "OpenAI"]
+SENTIMENT_COLORS = {'positive': '#00ff00', 'negative': '#ff0000', 'neutral': '#808080'}
+AI_MODEL_WARNING = "⚠️ AI modeli yüklenmedi. Lütfen GOOGLE_API_KEY'i kontrol edin."
+WORDCLOUD_WIDTH = 800
+WORDCLOUD_HEIGHT = 400
+
 # --- 1. SAYFA AYARLARI (Sadece bir kez ve en üstte olmalı) ---
-st.set_page_config(page_title="Aura Global Intelligence", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title=PAGE_TITLE, layout=PAGE_LAYOUT, initial_sidebar_state="expanded")
 
 # --- GÜVENLIK: PASSWORD PROTECTION ---
 def check_password():
@@ -93,8 +103,11 @@ def ai_ozet_al(haberler_listesi):
         metin = "\n- ".join(haberler_listesi[:15])
         prompt = f"Aşağıdaki teknoloji haberlerini analiz et ve dünya gündemini 3 kısa Türkçe cümleyle özetle:\n{metin}"
         
-        response = model.generate_content(prompt, timeout=30)
+        # Note: genai.GenerativeModel.generate_content() doesn't support timeout parameter
+        response = model.generate_content(prompt)
         return response.text
+    except TimeoutError:
+        return "⚠️ AI isteği zaman aşımına uğradı. Lütfen tekrar deneyin."
     except Exception as e:
         return f"⚠️ AI Yanıt Hatası: {str(e)}"
 
@@ -152,11 +165,17 @@ if not df.empty:
     tabs = st.tabs(["🌍 Harita", "📊 Ortalama", "📈 Trend", "☁️ Bulut", "⚔️ Versus", "🏢 Şirketler", "🔬 Analitik"])
     
     with tabs[0]: # Harita
-        iso_map = {'us':'USA','kr':'KOR','gr':'GRC','it':'ITA','fr':'FRA','es':'ESP'}
-        map_data = df.groupby('ulke')['skor'].mean().reset_index()
-        map_data['iso'] = map_data['ulke'].map(iso_map)
-        fig_map = px.choropleth(map_data, locations="iso", color="skor", color_continuous_scale='RdYlGn', range_color=[-1, 1])
-        st.plotly_chart(fig_map, use_container_width=True)
+        try:
+            if df.empty:
+                st.warning("ℹ️ Veri yok - Harita gösterilemedi")
+            else:
+                iso_map = {'us':'USA','kr':'KOR','gr':'GRC','it':'ITA','fr':'FRA','es':'ESP'}
+                map_data = df.groupby('ulke')['skor'].mean().reset_index()
+                map_data['iso'] = map_data['ulke'].map(iso_map).fillna('OTHER')
+                fig_map = px.choropleth(map_data, locations="iso", color="skor", color_continuous_scale='RdYlGn', range_color=[-1, 1])
+                st.plotly_chart(fig_map, use_container_width=True)
+        except Exception as e:
+            st.error(f"❌ Harita oluşturma hatası: {e}")
 
     with tabs[1]: # Ortalama
         try:
@@ -184,24 +203,40 @@ if not df.empty:
     with tabs[2]: # Trend (Güncellenmiş Teknik Görünüm)
         st.subheader("📈 Zaman İçinde Duygu Değişimi")
         try:
-            # Veriyi tarihe göre gruplayıp ortalamasını alıyoruz
-            trend_data = df.groupby([df['tarih'].dt.date, 'ulke'])['skor'].mean().reset_index()
-            fig_trend = px.line(trend_data, x='tarih', y='skor', color='ulke', markers=True)
-            st.plotly_chart(fig_trend, use_container_width=True)
+            if df.empty:
+                st.warning("ℹ️ Veri yok")
+            else:
+                # Tarih sütununu datetime'a çevir
+                df_trend = df.copy()
+                df_trend['tarih'] = pd.to_datetime(df_trend['tarih'], errors='coerce')
+                
+                # NaT değerleri kaldır
+                df_trend = df_trend.dropna(subset=['tarih'])
+                
+                if not df_trend.empty:
+                    trend_data = df_trend.groupby([df_trend['tarih'].dt.date, 'ulke'])['skor'].mean().reset_index()
+                    fig_trend = px.line(trend_data, x='tarih', y='skor', color='ulke', markers=True)
+                    st.plotly_chart(fig_trend, use_container_width=True)
+                else:
+                    st.warning("ℹ️ Geçerli tarih verisi yok")
         except Exception as e:
-            st.error(f"Trend grafiği oluşturma hatası: {e}")
+            st.error(f"❌ Trend grafiği oluşturma hatası: {e}")
 
     with tabs[3]: # Kelime Bulutu
         st.subheader("☁️ Kelime Bulutu")
         try:
             ulke = st.selectbox("Ülke seçin:", sorted(df['ulke'].unique()))
-            metin = " ".join(df[df['ulke'] == ulke]['baslik'].astype(str).tolist())
-            if len(metin) > 10:
-                wc = WordCloud(width=800, height=400, background_color='white', colormap='coolwarm').generate(metin)
-                fig, ax = plt.subplots()
-                ax.imshow(wc, interpolation='bilinear')
-                ax.axis('off')
-                st.pyplot(fig)
+            metin = " ".join(df[df['ulke'] == ulke]['baslik'].astype(str).tolist()).strip()
+            
+            if len(metin) > 10 and metin.replace(" ", "") != "":
+                try:
+                    wc = WordCloud(width=WORDCLOUD_WIDTH, height=WORDCLOUD_HEIGHT, background_color='white', colormap='coolwarm').generate(metin)
+                    fig, ax = plt.subplots()
+                    ax.imshow(wc, interpolation='bilinear')
+                    ax.axis('off')
+                    st.pyplot(fig)
+                except ValueError as e:
+                    st.warning(f"⚠️ Kelime bulutu oluşturulamadı: {e}")
             else:
                 st.info("ℹ️ Bu ülke için yeterli veri yok")
         except Exception as e:
@@ -210,24 +245,29 @@ if not df.empty:
     with tabs[4]: # Versus
         st.subheader("⚔️ Ülke Karşılaştırması")
         try:
-            u1, u2 = st.columns(2)
-            sel1 = u1.selectbox("1. Ülke", sorted(df['ulke'].unique()), index=0)
-            sel2 = u2.selectbox("2. Ülke", sorted(df['ulke'].unique()), index=1 if len(df['ulke'].unique()) > 1 else 0)
-            
-            vs_data = df[df['ulke'].isin([sel1, sel2])]
-            if not vs_data.empty:
-                st.plotly_chart(px.line(vs_data, x='tarih', y='skor', color='ulke'), use_container_width=True)
+            unique_countries = sorted(df['ulke'].unique())
+            if len(unique_countries) < 2:
+                st.warning("⚠️ Karşılaştırma için en az 2 ülke gerekli")
             else:
-                st.info("ℹ️ Karşılaştırma için yeterli veri yok")
+                u1, u2 = st.columns(2)
+                sel1 = u1.selectbox("1. Ülke", unique_countries, index=0)
+                # Ensure second selectbox index doesn't exceed bounds
+                max_index = min(1, len(unique_countries) - 1)
+                sel2 = u2.selectbox("2. Ülke", unique_countries, index=max_index if unique_countries.index(sel1) != max_index else (0 if max_index != 0 else 1))
+                
+                vs_data = df[df['ulke'].isin([sel1, sel2])]
+                if not vs_data.empty:
+                    st.plotly_chart(px.line(vs_data, x='tarih', y='skor', color='ulke'), use_container_width=True)
+                else:
+                    st.info("ℹ️ Karşılaştırma için yeterli veri yok")
         except Exception as e:
             st.error(f"Karşılaştırma hatası: {e}")
 
     with tabs[5]: # ŞİRKET TAKİBİ
         st.subheader("🏢 Şirket Takibi")
         try:
-            sirketler = ["Apple", "Nvidia", "Samsung", "Tesla", "Microsoft", "Google", "Amazon", "OpenAI"]
             s_data = []
-            for s in sirketler:
+            for s in COMPANY_LIST:
                 match = df[df['baslik'].str.contains(s, case=False, na=False)]
                 if not match.empty:
                     s_data.append({"Şirket": s, "Duygu Skoru": match['skor'].mean(), "Haber Sayısı": len(match)})
